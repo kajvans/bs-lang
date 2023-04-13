@@ -1,6 +1,5 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//import fs
+use std::fs;
 
 #[cfg(test)]
 mod tests {
@@ -8,18 +7,39 @@ mod tests {
 
     #[test]
     fn tokens(){
-        let mut tokenizer = Tokenizer::new("let a = 10;");
+        //write a really long string
+        let mut tokenizer = Tokenizer::new("let x = 10 + 20; let y = 30 + 40; let z = x + y; \n \"hello world\"");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::Identifier(Identifier::new("let")));
-        assert_eq!(tokens[1].kind, TokenKind::Identifier(Identifier::new("a")));
+        //write to file for debugging
+        fs::write("tokens.txt", format!("{:#?}", tokens)).expect("Unable to write file");
+
+        assert_eq!(tokens[0].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(tokens[1].kind, TokenKind::Identifier(Identifier::new("x")));
         assert_eq!(tokens[2].kind, TokenKind::Punctuator(Punctuator::new("=")));
         assert_eq!(tokens[3].kind, TokenKind::Number(Number::new("10")));
-        assert_eq!(tokens[4].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[4].kind, TokenKind::Operator(Operator::new("+")));
+        assert_eq!(tokens[5].kind, TokenKind::Number(Number::new("20")));
+        assert_eq!(tokens[6].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[7].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(tokens[8].kind, TokenKind::Identifier(Identifier::new("y")));
+        assert_eq!(tokens[9].kind, TokenKind::Punctuator(Punctuator::new("=")));
+        assert_eq!(tokens[10].kind, TokenKind::Number(Number::new("30")));
+        assert_eq!(tokens[11].kind, TokenKind::Operator(Operator::new("+")));
+        assert_eq!(tokens[12].kind, TokenKind::Number(Number::new("40")));
+        assert_eq!(tokens[13].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[14].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(tokens[15].kind, TokenKind::Identifier(Identifier::new("z")));
+        assert_eq!(tokens[16].kind, TokenKind::Punctuator(Punctuator::new("=")));
+        assert_eq!(tokens[17].kind, TokenKind::Identifier(Identifier::new("x")));
+        assert_eq!(tokens[18].kind, TokenKind::Operator(Operator::new("+")));
+        assert_eq!(tokens[19].kind, TokenKind::Identifier(Identifier::new("y")));
+        assert_eq!(tokens[20].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[21].kind, TokenKind::StringLiteral(StringLiteral::new("hello world")));
     }
 
     #[test]
@@ -47,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn identifier(){
+    fn keyword(){
         let mut tokenizer = Tokenizer::new("let");
         let mut tokens = Vec::new();
 
@@ -55,7 +75,19 @@ mod tests {
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::Identifier(Identifier::new("let")));
+        assert_eq!(tokens[0].kind, TokenKind::Keyword(Keyword::new("let")));
+    }
+
+    #[test]
+    fn identifier(){
+        let mut tokenizer = Tokenizer::new("x");
+        let mut tokens = Vec::new();
+
+        while let Some(token) = tokenizer.next() {
+            tokens.push(token);
+        }
+
+        assert_eq!(tokens[0].kind, TokenKind::Identifier(Identifier::new("x")));
     }
 
     #[test]
@@ -81,6 +113,19 @@ mod tests {
 
         assert_eq!(tokens[0].kind, TokenKind::Punctuator(Punctuator::new(";")));
     }
+
+    #[test]
+    fn next_line(){
+        let mut tokenizer = Tokenizer::new("\n \"hello world\"");
+        let mut tokens = Vec::new();
+
+        while let Some(token) = tokenizer.next() {
+            tokens.push(token);
+        }
+
+        //position should be line 2
+        assert_eq!(tokens[0].line, 2);
+    }
 }
 
 //create a list of all operators
@@ -88,6 +133,9 @@ const OPERATORS: [&str; 16] = ["+", "-", "*", "/", "%", "++", "--", "==", "!=", 
 
 //create a list of all punctuators
 const PUNCTUATORS: [&str; 10] = ["(", ")", "{", "}", "[", "]", ",", ";", ".", "="];
+
+//create list of all keywords
+const KEYWORDS: [&str; 3] = ["let", "const", "func"];
 
 #[derive(Debug, PartialEq)]
 pub struct Operator(pub String);
@@ -135,6 +183,15 @@ impl Identifier {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Keyword(pub String);
+
+impl Keyword {
+    pub fn new(value: &str) -> Self {
+        Keyword(value.to_string())
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub line: usize,
@@ -154,6 +211,7 @@ pub enum TokenKind {
     Number(Number),
     StringLiteral(StringLiteral),
     Identifier(Identifier),
+    Keyword(Keyword),
     Error(Error)
 }
 
@@ -185,7 +243,13 @@ impl Tokenizer {
         while token.is_none() {
             let c = self.input.chars().nth(self.position).unwrap();
 
-            if c.is_whitespace() {
+            if c == '\n' {
+                self.line += 1;
+                self.column = 1;
+                self.position += 1;
+            }
+
+            else if c.is_whitespace() {
                 self.skip_whitespace();
             } 
 
@@ -212,6 +276,8 @@ impl Tokenizer {
             else if PUNCTUATORS.contains(&c.to_string().as_str()) {
                 token = Some(self.read_punctuator());
             }
+
+            //check for a new
 
             else {
                 //create an error with an error type
@@ -329,11 +395,19 @@ impl Tokenizer {
             }
         }
 
-        Token::new(
-            TokenKind::Identifier(Identifier::new(&value)),
-            self.line,
-            self.column,
-        )
+        if KEYWORDS.contains(&value.as_str()) {
+            Token::new(
+                TokenKind::Keyword(Keyword::new(&value)),
+                self.line,
+                self.column,
+            )
+        } else {
+            Token::new(
+                TokenKind::Identifier(Identifier::new(&value)),
+                self.line,
+                self.column,
+            )
+        }
     }
 
     fn read_operator(&mut self) -> Token {
