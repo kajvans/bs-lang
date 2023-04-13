@@ -1,8 +1,9 @@
 //import fs
+//ignore unused imports for now
+#[allow(unused_imports)]
 use std::fs;
 
-#[cfg(test)]
-mod tests {
+#[cfg(test)]mod tests {
     use super::*;
 
     #[test]
@@ -124,7 +125,7 @@ mod tests {
         }
 
         //position should be line 2
-        assert_eq!(tokens[0].line, 2);
+        assert_eq!(tokens[0].position.line, 2);
     }
 }
 
@@ -194,13 +195,25 @@ impl Keyword {
 #[derive(Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
+    pub position: Position,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Position{
     pub line: usize,
-    pub column: usize,
+    pub start_column: usize,
+    pub end_column: usize,
+}
+
+impl Position {
+    pub fn new(line: usize, start_column: usize, end_column: usize) -> Self {
+        Position { line, start_column, end_column }
+    }
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, line: usize, column: usize) -> Self {
-        Token { kind, line, column }
+    pub fn new(kind: TokenKind, line: usize, start_column: usize, end_column: usize) -> Self {
+        Token { kind, position: Position::new(line, start_column, end_column) }
     }
 }
 
@@ -234,6 +247,9 @@ impl Tokenizer {
     }
 
     pub fn next(&mut self) -> Option<Token> {
+        //start column is the current column
+        let start_column = self.column;
+
         if self.position >= self.input.len() {
             return None;
         }
@@ -281,7 +297,7 @@ impl Tokenizer {
 
             else {
                 //create an error with an error type
-                token = Some(Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"Invalid character")), self.line, self.column));
+        token = Some(Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"Invalid token")), self.line, start_column, self.column));
             }
         }
         token
@@ -340,11 +356,7 @@ impl Tokenizer {
             }
         }
 
-        Token::new(
-            TokenKind::Number(Number::new(&value)),
-            self.line,
-            self.column,
-        )
+        Token::new(TokenKind::Number(Number::new(value.as_str())), self.line, self.column - value.len(), self.column)
     }
 
     fn read_string(&mut self) -> Token {
@@ -370,14 +382,11 @@ impl Tokenizer {
 
         //check last char if it is a " if not create an error
         if self.input.chars().nth(self.position - 1).unwrap() != '"' {
-            return Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"String not closed")), self.line, self.column);
+            //create an error with an error type
+            return Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"Invalid token")), self.line, self.column, self.column);
         }
 
-        Token::new(
-            TokenKind::StringLiteral(StringLiteral::new(&value)),
-            self.line,
-            self.column,
-        )
+        Token::new(TokenKind::StringLiteral(StringLiteral::new(value.as_str())), self.line, self.column - value.len(), self.column)
     }
 
     fn read_identifier(&mut self) -> Token {
@@ -396,17 +405,9 @@ impl Tokenizer {
         }
 
         if KEYWORDS.contains(&value.as_str()) {
-            Token::new(
-                TokenKind::Keyword(Keyword::new(&value)),
-                self.line,
-                self.column,
-            )
+            Token::new(TokenKind::Keyword(Keyword::new(&value)), self.line, self.column - value.len(), self.column)
         } else {
-            Token::new(
-                TokenKind::Identifier(Identifier::new(&value)),
-                self.line,
-                self.column,
-            )
+            Token::new(TokenKind::Identifier(Identifier::new(&value)), self.line, self.column - value.len(), self.column)
         }
     }
 
@@ -428,6 +429,7 @@ impl Tokenizer {
         Token::new(
             TokenKind::Operator(Operator::new(&value)),
             self.line,
+            self.column - value.len(),
             self.column,
         )
     }
@@ -450,6 +452,7 @@ impl Tokenizer {
         Token::new(
             TokenKind::Punctuator(Punctuator::new(&value)),
             self.line,
+            self.column - value.len(),
             self.column,
         )
     }
