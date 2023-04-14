@@ -11,7 +11,7 @@ mod tests {
     fn tokens() {
         //write a really long string
         let mut tokenizer =
-            Tokenizer::new("let x = 10 + 20; let y = 30 + 40; let z = x + y; \n \"hello world\"");
+            Tokenizer::new("let x = 10 + 20.1; let y = 30 + 40; let z = x + y; \n \"hello world\"");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
@@ -24,16 +24,16 @@ mod tests {
         assert_eq!(tokens[0].kind, TokenKind::Keyword(Keyword::new("let")));
         assert_eq!(tokens[1].kind, TokenKind::Identifier(Identifier::new("x")));
         assert_eq!(tokens[2].kind, TokenKind::Punctuator(Punctuator::new("=")));
-        assert_eq!(tokens[3].kind, TokenKind::Number(Number::new("10")));
+        assert_eq!(tokens[3].kind, TokenKind::IntLiteral(IntLiteral::new("10")));
         assert_eq!(tokens[4].kind, TokenKind::Operator(Operator::new("+")));
-        assert_eq!(tokens[5].kind, TokenKind::Number(Number::new("20")));
+        assert_eq!(tokens[5].kind, TokenKind::FloatLitteral(FloatLitteral::new("20.1")));
         assert_eq!(tokens[6].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(tokens[7].kind, TokenKind::Keyword(Keyword::new("let")));
         assert_eq!(tokens[8].kind, TokenKind::Identifier(Identifier::new("y")));
         assert_eq!(tokens[9].kind, TokenKind::Punctuator(Punctuator::new("=")));
-        assert_eq!(tokens[10].kind, TokenKind::Number(Number::new("30")));
+        assert_eq!(tokens[10].kind, TokenKind::IntLiteral(IntLiteral::new("30")));
         assert_eq!(tokens[11].kind, TokenKind::Operator(Operator::new("+")));
-        assert_eq!(tokens[12].kind, TokenKind::Number(Number::new("40")));
+        assert_eq!(tokens[12].kind, TokenKind::IntLiteral(IntLiteral::new("40")));
         assert_eq!(tokens[13].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(tokens[14].kind, TokenKind::Keyword(Keyword::new("let")));
         assert_eq!(tokens[15].kind, TokenKind::Identifier(Identifier::new("z")));
@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[test]
-    fn number() {
+    fn int() {
         let mut tokenizer = Tokenizer::new("10");
         let mut tokens = Vec::new();
 
@@ -57,7 +57,19 @@ mod tests {
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::Number(Number::new("10")));
+        assert_eq!(tokens[0].kind, TokenKind::IntLiteral(IntLiteral::new("10")));
+    }
+
+    #[test]
+    fn float(){
+        let mut tokenizer = Tokenizer::new("10.1");
+        let mut tokens = Vec::new();
+
+        while let Some(token) = tokenizer.next() {
+            tokens.push(token);
+        }
+
+        assert_eq!(tokens[0].kind, TokenKind::FloatLitteral(FloatLitteral::new("10.1")));
     }
 
     #[test]
@@ -169,11 +181,20 @@ impl Punctuator {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Number(pub f64);
+pub struct FloatLitteral(pub f64);
 
-impl Number {
+impl FloatLitteral {
     pub fn new(value: &str) -> Self {
-        Number(value.parse::<f64>().unwrap())
+        FloatLitteral(value.parse::<f64>().unwrap())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IntLiteral(pub i64);
+
+impl IntLiteral {
+    pub fn new(value: &str) -> Self {
+        IntLiteral(value.parse::<i64>().unwrap())
     }
 }
 
@@ -249,7 +270,8 @@ impl Token {
 pub enum TokenKind {
     Operator(Operator),
     Punctuator(Punctuator),
-    Number(Number),
+    FloatLitteral(FloatLitteral),
+    IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
     Identifier(Identifier),
     Type(Type),
@@ -360,7 +382,25 @@ impl Tokenizer {
     }
 
     fn read_number(&mut self) -> Token {
+        //read number and check if it is a float or int
         let mut value = String::new();
+
+        while self.position < self.input.len() {
+            let c = self.input.chars().nth(self.position).unwrap();
+
+            if c.is_numeric() {
+                value.push(c);
+                self.position += 1;
+                self.column += 1;
+            } else if c == '.' {
+                value.push(c);
+                self.position += 1;
+                self.column += 1;
+                break;
+            } else {
+                break;
+            }
+        }
 
         while self.position < self.input.len() {
             let c = self.input.chars().nth(self.position).unwrap();
@@ -374,12 +414,21 @@ impl Tokenizer {
             }
         }
 
-        Token::new(
-            TokenKind::Number(Number::new(value.as_str())),
-            self.line,
-            self.column - value.len(),
-            self.column,
-        )
+        if value.contains('.') {
+            Token::new(
+                TokenKind::FloatLitteral(FloatLitteral::new(value.as_str())),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
+        } else {
+            Token::new(
+                TokenKind::IntLiteral(IntLiteral::new(value.as_str())),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
+        }
     }
 
     fn read_string(&mut self) -> Token {
