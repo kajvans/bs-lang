@@ -3,13 +3,15 @@
 #[allow(unused_imports)]
 use std::fs;
 
-#[cfg(test)]mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     #[test]
-    fn tokens(){
+    fn tokens() {
         //write a really long string
-        let mut tokenizer = Tokenizer::new("let x = 10 + 20; let y = 30 + 40; let z = x + y; \n \"hello world\"");
+        let mut tokenizer =
+            Tokenizer::new("let x = 10 + 20; let y = 30 + 40; let z = x + y; \n \"hello world\"");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
@@ -40,11 +42,14 @@ use std::fs;
         assert_eq!(tokens[18].kind, TokenKind::Operator(Operator::new("+")));
         assert_eq!(tokens[19].kind, TokenKind::Identifier(Identifier::new("y")));
         assert_eq!(tokens[20].kind, TokenKind::Punctuator(Punctuator::new(";")));
-        assert_eq!(tokens[21].kind, TokenKind::StringLiteral(StringLiteral::new("hello world")));
+        assert_eq!(
+            tokens[21].kind,
+            TokenKind::StringLiteral(StringLiteral::new("hello world"))
+        );
     }
 
     #[test]
-    fn number(){
+    fn number() {
         let mut tokenizer = Tokenizer::new("10");
         let mut tokens = Vec::new();
 
@@ -56,7 +61,7 @@ use std::fs;
     }
 
     #[test]
-    fn string(){
+    fn string() {
         let mut tokenizer = Tokenizer::new("\"Hello World\"");
         let mut tokens = Vec::new();
 
@@ -64,11 +69,14 @@ use std::fs;
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::StringLiteral(StringLiteral::new("Hello World")));
+        assert_eq!(
+            tokens[0].kind,
+            TokenKind::StringLiteral(StringLiteral::new("Hello World"))
+        );
     }
 
     #[test]
-    fn keyword(){
+    fn keyword() {
         let mut tokenizer = Tokenizer::new("let");
         let mut tokens = Vec::new();
 
@@ -80,7 +88,7 @@ use std::fs;
     }
 
     #[test]
-    fn identifier(){
+    fn identifier() {
         let mut tokenizer = Tokenizer::new("x");
         let mut tokens = Vec::new();
 
@@ -92,7 +100,7 @@ use std::fs;
     }
 
     #[test]
-    fn operator(){
+    fn operator() {
         let mut tokenizer = Tokenizer::new("+");
         let mut tokens = Vec::new();
 
@@ -104,7 +112,7 @@ use std::fs;
     }
 
     #[test]
-    fn punctuator(){
+    fn punctuator() {
         let mut tokenizer = Tokenizer::new(";");
         let mut tokens = Vec::new();
 
@@ -116,7 +124,7 @@ use std::fs;
     }
 
     #[test]
-    fn next_line(){
+    fn next_line() {
         let mut tokenizer = Tokenizer::new("\n \"hello world\"");
         let mut tokens = Vec::new();
 
@@ -130,13 +138,17 @@ use std::fs;
 }
 
 //create a list of all operators
-const OPERATORS: [&str; 16] = ["+", "-", "*", "/", "%", "++", "--", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "!"];
+const OPERATORS: [&str; 16] = [
+    "+", "-", "*", "/", "%", "++", "--", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "!",
+];
 
 //create a list of all punctuators
 const PUNCTUATORS: [&str; 10] = ["(", ")", "{", "}", "[", "]", ",", ";", ".", "="];
 
 //create list of all keywords
 const KEYWORDS: [&str; 3] = ["let", "const", "func"];
+
+const TYPES: [&str; 3] = ["num", "str", "bool"];
 
 #[derive(Debug, PartialEq)]
 pub struct Operator(pub String);
@@ -175,6 +187,15 @@ impl StringLiteral {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Type(pub String);
+
+impl Type {
+    pub fn new(value: &str) -> Self {
+        Type(value.to_string())
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Identifier(pub String);
 
 impl Identifier {
@@ -199,7 +220,7 @@ pub struct Token {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Position{
+pub struct Position {
     pub line: usize,
     pub start_column: usize,
     pub end_column: usize,
@@ -207,13 +228,20 @@ pub struct Position{
 
 impl Position {
     pub fn new(line: usize, start_column: usize, end_column: usize) -> Self {
-        Position { line, start_column, end_column }
+        Position {
+            line,
+            start_column,
+            end_column,
+        }
     }
 }
 
 impl Token {
     pub fn new(kind: TokenKind, line: usize, start_column: usize, end_column: usize) -> Self {
-        Token { kind, position: Position::new(line, start_column, end_column) }
+        Token {
+            kind,
+            position: Position::new(line, start_column, end_column),
+        }
     }
 }
 
@@ -224,8 +252,9 @@ pub enum TokenKind {
     Number(Number),
     StringLiteral(StringLiteral),
     Identifier(Identifier),
+    Type(Type),
     Keyword(Keyword),
-    Error(Error)
+    Error(Error),
 }
 
 #[derive(Debug, PartialEq)]
@@ -263,41 +292,30 @@ impl Tokenizer {
                 self.line += 1;
                 self.column = 1;
                 self.position += 1;
-            }
-
-            else if c.is_whitespace() {
+            } else if c.is_whitespace() {
                 self.skip_whitespace();
-            } 
-
-            else if c.is_numeric() {
+            } else if c.is_numeric() {
                 token = Some(self.read_number());
-            } 
-
-            else if c == '"' {
+            } else if c == '"' {
                 token = Some(self.read_string());
-            } 
-
-            else if c.is_alphabetic() {
+            } else if c.is_alphabetic() {
                 token = Some(self.read_identifier());
-            } 
-
-            else if c == '/' && self.peek() == Some('/') {
-               self.skip_comment();
-            }
-
-            else if OPERATORS.contains(&c.to_string().as_str()) {
+            } else if c == '/' && self.peek() == Some('/') {
+                self.skip_comment();
+            } else if OPERATORS.contains(&c.to_string().as_str()) {
                 token = Some(self.read_operator());
-            }
-
-            else if PUNCTUATORS.contains(&c.to_string().as_str()) {
+            } else if PUNCTUATORS.contains(&c.to_string().as_str()) {
                 token = Some(self.read_punctuator());
             }
-
             //check for a new
-
             else {
                 //create an error with an error type
-        token = Some(Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"Invalid token")), self.line, start_column, self.column));
+                token = Some(Token::new(
+                    TokenKind::Error(Error::new(ErrorType::InvalidToken, "Invalid token")),
+                    self.line,
+                    start_column,
+                    self.column,
+                ));
             }
         }
         token
@@ -356,7 +374,12 @@ impl Tokenizer {
             }
         }
 
-        Token::new(TokenKind::Number(Number::new(value.as_str())), self.line, self.column - value.len(), self.column)
+        Token::new(
+            TokenKind::Number(Number::new(value.as_str())),
+            self.line,
+            self.column - value.len(),
+            self.column,
+        )
     }
 
     fn read_string(&mut self) -> Token {
@@ -383,10 +406,20 @@ impl Tokenizer {
         //check last char if it is a " if not create an error
         if self.input.chars().nth(self.position - 1).unwrap() != '"' {
             //create an error with an error type
-            return Token::new(TokenKind::Error(Error::new(ErrorType::InvalidToken,"Invalid token")), self.line, self.column, self.column);
+            return Token::new(
+                TokenKind::Error(Error::new(ErrorType::InvalidToken, "Invalid token")),
+                self.line,
+                self.column,
+                self.column,
+            );
         }
 
-        Token::new(TokenKind::StringLiteral(StringLiteral::new(value.as_str())), self.line, self.column - value.len(), self.column)
+        Token::new(
+            TokenKind::StringLiteral(StringLiteral::new(value.as_str())),
+            self.line,
+            self.column - value.len(),
+            self.column,
+        )
     }
 
     fn read_identifier(&mut self) -> Token {
@@ -405,9 +438,26 @@ impl Tokenizer {
         }
 
         if KEYWORDS.contains(&value.as_str()) {
-            Token::new(TokenKind::Keyword(Keyword::new(&value)), self.line, self.column - value.len(), self.column)
+            Token::new(
+                TokenKind::Keyword(Keyword::new(&value)),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
+        } else if TYPES.contains(&value.as_str()) {
+            Token::new(
+                TokenKind::Type(Type::new(&value)),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
         } else {
-            Token::new(TokenKind::Identifier(Identifier::new(&value)), self.line, self.column - value.len(), self.column)
+            Token::new(
+                TokenKind::Identifier(Identifier::new(&value)),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
         }
     }
 
