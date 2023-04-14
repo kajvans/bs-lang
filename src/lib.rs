@@ -11,7 +11,8 @@ mod tests {
     fn tokens() {
         //write a really long string
         let mut tokenizer =
-            Tokenizer::new("let x: float = 10 + 20.1; let y: int = 30 + 40; let z: float = x + y; \n let x: string = \"hello world\"; let r: bool = true;");
+            Tokenizer::new("let x: float = 10 + 20.1; let y: int = 30 + 40; let z: float = x + y; \n let x: string = \"hello world\"; let r: bool = true; 
+let a: array = [1, 2, 3.4]");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
@@ -19,7 +20,7 @@ mod tests {
         }
 
         //write to file for debugging
-        fs::write("tokens.txt", format!("{:#?}", tokens)).expect("Unable to write file");
+        //fs::write("tokens.txt", format!("{:#?}", tokens)).expect("Unable to write file");
 
         //check all the tokens
         assert_eq!(tokens[0].kind, TokenKind::Keyword(Keyword::new("let")));
@@ -32,7 +33,7 @@ mod tests {
         assert_eq!(tokens[4].kind, TokenKind::Operator(Operator::new("+")));
         assert_eq!(
             tokens[5].kind,
-            TokenKind::FloatLitteral(FloatLitteral::new("20.1"))
+            TokenKind::FloatLiteral(FloatLiteral::new("20.1"))
         );
         assert_eq!(tokens[6].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(tokens[7].kind, TokenKind::Keyword(Keyword::new("let")));
@@ -85,6 +86,32 @@ mod tests {
             tokens[29].kind,
             TokenKind::BoolLiteral(BoolLiteral::new("true"))
         );
+
+        assert_eq!(tokens[30].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[31].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(
+            tokens[32].kind,
+            TokenKind::Identifier(Identifier::new("a", Type::new("array")))
+        );
+        assert_eq!(tokens[33].kind, TokenKind::Punctuator(Punctuator::new("=")));
+
+        let expected = [Token::new(
+            TokenKind::ArrayLiteral(
+                ArrayLiteral::new(vec![
+                    Token::new(TokenKind::IntLiteral(IntLiteral(1)), 3, 2 + 15, 3 + 15),
+                    Token::new(TokenKind::Punctuator(Punctuator(",".to_string())), 3, 3 + 15, 4 + 15),
+                    Token::new(TokenKind::IntLiteral(IntLiteral(2)), 3, 5  + 15, 6  + 15),
+                    Token::new(TokenKind::Punctuator(Punctuator(",".to_string())), 3, 6  + 15, 7  + 15),
+                    Token::new(TokenKind::FloatLiteral(FloatLiteral(3.4)), 3, 8  + 15, 11  + 15),
+                ])
+            ),
+            3,
+            1 + 15,
+            12 + 15,
+        )];
+
+        assert_eq!(tokens[34], expected[0]);
+
     }
 
     #[test]
@@ -110,7 +137,7 @@ mod tests {
 
         assert_eq!(
             tokens[0].kind,
-            TokenKind::FloatLitteral(FloatLitteral::new("10.1"))
+            TokenKind::FloatLiteral(FloatLiteral::new("10.1"))
         );
     }
 
@@ -192,6 +219,34 @@ mod tests {
         //position should be line 2
         assert_eq!(tokens[0].position.line, 2);
     }
+
+    #[test]
+    fn array(){
+        let mut tokenizer = Tokenizer::new("[1, 2, 3.4]");
+        let mut tokens = Vec::new();
+
+        while let Some(token) = tokenizer.next() {
+            tokens.push(token);
+        }
+    
+        let expected = [Token::new(
+            TokenKind::ArrayLiteral(
+                ArrayLiteral::new(vec![
+                    Token::new(TokenKind::IntLiteral(IntLiteral(1)), 1, 2, 3),
+                    Token::new(TokenKind::Punctuator(Punctuator(",".to_string())), 1, 3, 4),
+                    Token::new(TokenKind::IntLiteral(IntLiteral(2)), 1, 5, 6),
+                    Token::new(TokenKind::Punctuator(Punctuator(",".to_string())), 1, 6, 7),
+                    Token::new(TokenKind::FloatLiteral(FloatLiteral(3.4)), 1, 8, 11),
+                ])
+            ),
+            1,
+            1,
+            12,
+        )];
+
+        assert_eq!(tokens, expected);
+        
+    }
 }
 
 //create a list of all operators
@@ -205,7 +260,7 @@ const PUNCTUATORS: [&str; 10] = ["(", ")", "{", "}", "[", "]", ",", ";", ".", "=
 //create list of all keywords
 const KEYWORDS: [&str; 3] = ["let", "const", "func"];
 
-const TYPES: [&str; 4] = ["float", "int", "string", "bool"];
+const TYPES: [&str; 5] = ["float", "int", "string", "bool", "array"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Operator(pub String);
@@ -226,6 +281,15 @@ impl BoolLiteral {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ArrayLiteral(pub Vec<Token>);
+
+impl ArrayLiteral {
+    pub fn new(value: Vec<Token>) -> Self {
+        ArrayLiteral(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Punctuator(pub String);
 
 impl Punctuator {
@@ -235,11 +299,11 @@ impl Punctuator {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FloatLitteral(pub f64);
+pub struct FloatLiteral(pub f64);
 
-impl FloatLitteral {
+impl FloatLiteral {
     pub fn new(value: &str) -> Self {
-        FloatLitteral(value.parse::<f64>().unwrap())
+        FloatLiteral(value.parse::<f64>().unwrap())
     }
 }
 
@@ -325,7 +389,8 @@ pub enum TokenKind {
     Operator(Operator),
     Punctuator(Punctuator),
     BoolLiteral(BoolLiteral),
-    FloatLitteral(FloatLitteral),
+    ArrayLiteral(ArrayLiteral),
+    FloatLiteral(FloatLiteral),
     IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
     Identifier(Identifier),
@@ -475,7 +540,7 @@ impl Tokenizer {
 
         if value.contains('.') {
             Token::new(
-                TokenKind::FloatLitteral(FloatLitteral::new(value.as_str())),
+                TokenKind::FloatLiteral(FloatLiteral::new(value.as_str())),
                 self.line,
                 self.column - value.len(),
                 self.column,
@@ -651,6 +716,11 @@ impl Tokenizer {
     fn read_punctuator(&mut self) -> Token {
         let mut value = String::new();
 
+        //check if char is a left bracket
+        if self.input.chars().nth(self.position).unwrap() == '[' {
+            return self.read_array();
+        }
+
         while self.position < self.input.len() {
             let c = self.input.chars().nth(self.position).unwrap();
 
@@ -667,6 +737,35 @@ impl Tokenizer {
             TokenKind::Punctuator(Punctuator::new(&value)),
             self.line,
             self.column - value.len(),
+            self.column,
+        )
+    }
+
+    fn read_array(&mut self) -> Token {
+        let mut tokens: Vec<Option<Token>> = Vec::new();
+
+        let start = self.column;
+
+        self.position += 1;
+        self.column += 1;
+    
+        while self.position < self.input.len() {
+            let c = self.input.chars().nth(self.position).unwrap();
+    
+            if c == ']' {
+                self.position += 1;
+                self.column += 1;
+                break;
+            } else {
+                let token = self.next();
+                tokens.push(token);
+            }
+        }
+    
+        Token::new(
+            TokenKind::ArrayLiteral(ArrayLiteral::new(tokens.into_iter().flatten().collect::<Vec<Token>>())),
+            self.line,
+            start,
             self.column,
         )
     }
