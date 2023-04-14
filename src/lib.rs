@@ -11,7 +11,7 @@ mod tests {
     fn tokens() {
         //write a really long string
         let mut tokenizer =
-            Tokenizer::new("let x: float = 10 + 20.1; let y: int = 30 + 40; let z: float = x + y; \n let x: string = \"hello world\"");
+            Tokenizer::new("let x: float = 10 + 20.1; let y: int = 30 + 40; let z: float = x + y; \n let x: string = \"hello world\"; let r: bool = true;");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
@@ -73,6 +73,17 @@ mod tests {
         assert_eq!(
             tokens[24].kind,
             TokenKind::StringLiteral(StringLiteral::new("hello world"))
+        );
+        assert_eq!(tokens[25].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[26].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(
+            tokens[27].kind,
+            TokenKind::Identifier(Identifier::new("r", Type::new("bool")))
+        );
+        assert_eq!(tokens[28].kind, TokenKind::Punctuator(Punctuator::new("=")));
+        assert_eq!(
+            tokens[29].kind,
+            TokenKind::BoolLiteral(BoolLiteral::new("true"))
         );
     }
 
@@ -192,7 +203,7 @@ const OPERATORS: [&str; 16] = [
 const PUNCTUATORS: [&str; 10] = ["(", ")", "{", "}", "[", "]", ",", ";", ".", "="];
 
 //create list of all keywords
-const KEYWORDS: [&str; 5] = ["let", "const", "func", "true", "false"];
+const KEYWORDS: [&str; 3] = ["let", "const", "func"];
 
 const TYPES: [&str; 4] = ["float", "int", "string", "bool"];
 
@@ -202,6 +213,15 @@ pub struct Operator(pub String);
 impl Operator {
     pub fn new(value: &str) -> Self {
         Operator(value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoolLiteral(pub bool);
+
+impl BoolLiteral {
+    pub fn new(value: &str) -> Self {
+        BoolLiteral(value.parse::<bool>().unwrap())
     }
 }
 
@@ -304,6 +324,7 @@ impl Token {
 pub enum TokenKind {
     Operator(Operator),
     Punctuator(Punctuator),
+    BoolLiteral(BoolLiteral),
     FloatLitteral(FloatLitteral),
     IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
@@ -579,6 +600,15 @@ impl Tokenizer {
         } else if KEYWORDS.contains(&value.as_str()) {
             Token::new(
                 TokenKind::Keyword(Keyword::new(&value)),
+                self.line,
+                self.column - value.len(),
+                self.column,
+            )
+        }
+
+        else if &value == "true" || &value == "false" {
+            Token::new(
+                TokenKind::BoolLiteral(BoolLiteral::new(&value)),
                 self.line,
                 self.column - value.len(),
                 self.column,
