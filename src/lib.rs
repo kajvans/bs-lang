@@ -11,7 +11,7 @@ mod tests {
     fn tokens() {
         //write a really long string
         let mut tokenizer =
-            Tokenizer::new("let x = 10 + 20.1; let y = 30 + 40; let z = x + y; \n \"hello world\"");
+            Tokenizer::new("let x: float = 10 + 20.1; let y: int = 30 + 40; let z: float = x + y; \n let x: string = \"hello world\"");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
@@ -21,29 +21,57 @@ mod tests {
         //write to file for debugging
         fs::write("tokens.txt", format!("{:#?}", tokens)).expect("Unable to write file");
 
+        //check all the tokens
         assert_eq!(tokens[0].kind, TokenKind::Keyword(Keyword::new("let")));
-        assert_eq!(tokens[1].kind, TokenKind::Identifier(Identifier::new("x")));
+        assert_eq!(
+            tokens[1].kind,
+            TokenKind::Identifier(Identifier::new("x", Type::new("float")))
+        );
         assert_eq!(tokens[2].kind, TokenKind::Punctuator(Punctuator::new("=")));
         assert_eq!(tokens[3].kind, TokenKind::IntLiteral(IntLiteral::new("10")));
         assert_eq!(tokens[4].kind, TokenKind::Operator(Operator::new("+")));
-        assert_eq!(tokens[5].kind, TokenKind::FloatLitteral(FloatLitteral::new("20.1")));
+        assert_eq!(
+            tokens[5].kind,
+            TokenKind::FloatLitteral(FloatLitteral::new("20.1"))
+        );
         assert_eq!(tokens[6].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(tokens[7].kind, TokenKind::Keyword(Keyword::new("let")));
-        assert_eq!(tokens[8].kind, TokenKind::Identifier(Identifier::new("y")));
+        assert_eq!(
+            tokens[8].kind,
+            TokenKind::Identifier(Identifier::new("y", Type::new("int")))
+        );
         assert_eq!(tokens[9].kind, TokenKind::Punctuator(Punctuator::new("=")));
         assert_eq!(tokens[10].kind, TokenKind::IntLiteral(IntLiteral::new("30")));
         assert_eq!(tokens[11].kind, TokenKind::Operator(Operator::new("+")));
-        assert_eq!(tokens[12].kind, TokenKind::IntLiteral(IntLiteral::new("40")));
+        assert_eq!(
+            tokens[12].kind,
+            TokenKind::IntLiteral(IntLiteral::new("40"))
+        );
         assert_eq!(tokens[13].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(tokens[14].kind, TokenKind::Keyword(Keyword::new("let")));
-        assert_eq!(tokens[15].kind, TokenKind::Identifier(Identifier::new("z")));
-        assert_eq!(tokens[16].kind, TokenKind::Punctuator(Punctuator::new("=")));
-        assert_eq!(tokens[17].kind, TokenKind::Identifier(Identifier::new("x")));
-        assert_eq!(tokens[18].kind, TokenKind::Operator(Operator::new("+")));
-        assert_eq!(tokens[19].kind, TokenKind::Identifier(Identifier::new("y")));
-        assert_eq!(tokens[20].kind, TokenKind::Punctuator(Punctuator::new(";")));
         assert_eq!(
-            tokens[21].kind,
+            tokens[15].kind,
+            TokenKind::Identifier(Identifier::new("z", Type::new("float")))
+        );
+        assert_eq!(tokens[16].kind, TokenKind::Punctuator(Punctuator::new("=")));
+        assert_eq!(
+            tokens[17].kind,
+            TokenKind::Identifier(Identifier::new("x", Type::new("")))
+        );
+        assert_eq!(tokens[18].kind, TokenKind::Operator(Operator::new("+")));
+        assert_eq!(
+            tokens[19].kind,
+            TokenKind::Identifier(Identifier::new("y", Type::new("")))
+        );
+        assert_eq!(tokens[20].kind, TokenKind::Punctuator(Punctuator::new(";")));
+        assert_eq!(tokens[21].kind, TokenKind::Keyword(Keyword::new("let")));
+        assert_eq!(
+            tokens[22].kind,
+            TokenKind::Identifier(Identifier::new("x", Type::new("string")))
+        );
+        assert_eq!(tokens[23].kind, TokenKind::Punctuator(Punctuator::new("=")));
+        assert_eq!(
+            tokens[24].kind,
             TokenKind::StringLiteral(StringLiteral::new("hello world"))
         );
     }
@@ -61,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn float(){
+    fn float() {
         let mut tokenizer = Tokenizer::new("10.1");
         let mut tokens = Vec::new();
 
@@ -69,7 +97,10 @@ mod tests {
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::FloatLitteral(FloatLitteral::new("10.1")));
+        assert_eq!(
+            tokens[0].kind,
+            TokenKind::FloatLitteral(FloatLitteral::new("10.1"))
+        );
     }
 
     #[test]
@@ -101,14 +132,17 @@ mod tests {
 
     #[test]
     fn identifier() {
-        let mut tokenizer = Tokenizer::new("x");
+        let mut tokenizer = Tokenizer::new("x: int");
         let mut tokens = Vec::new();
 
         while let Some(token) = tokenizer.next() {
             tokens.push(token);
         }
 
-        assert_eq!(tokens[0].kind, TokenKind::Identifier(Identifier::new("x")));
+        assert_eq!(
+            tokens[0].kind,
+            TokenKind::Identifier(Identifier::new("x", Type::new("int"))),
+        );
     }
 
     #[test]
@@ -158,11 +192,11 @@ const OPERATORS: [&str; 16] = [
 const PUNCTUATORS: [&str; 10] = ["(", ")", "{", "}", "[", "]", ",", ";", ".", "="];
 
 //create list of all keywords
-const KEYWORDS: [&str; 3] = ["let", "const", "func"];
+const KEYWORDS: [&str; 5] = ["let", "const", "func", "true", "false"];
 
-const TYPES: [&str; 3] = ["num", "str", "bool"];
+const TYPES: [&str; 4] = ["float", "int", "string", "bool"];
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Operator(pub String);
 
 impl Operator {
@@ -171,7 +205,7 @@ impl Operator {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Punctuator(pub String);
 
 impl Punctuator {
@@ -180,7 +214,7 @@ impl Punctuator {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FloatLitteral(pub f64);
 
 impl FloatLitteral {
@@ -189,7 +223,7 @@ impl FloatLitteral {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntLiteral(pub i64);
 
 impl IntLiteral {
@@ -198,7 +232,7 @@ impl IntLiteral {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StringLiteral(pub String);
 
 impl StringLiteral {
@@ -207,7 +241,7 @@ impl StringLiteral {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Type(pub String);
 
 impl Type {
@@ -216,16 +250,16 @@ impl Type {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Identifier(pub String);
+#[derive(Debug, Clone, PartialEq)]
+pub struct Identifier(pub String, pub Type);
 
 impl Identifier {
-    pub fn new(value: &str) -> Self {
-        Identifier(value.to_string())
+    pub fn new(value: &str, type_: Type) -> Self {
+        Identifier(value.to_string(), type_)
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Keyword(pub String);
 
 impl Keyword {
@@ -234,13 +268,13 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub position: Position,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub line: usize,
     pub start_column: usize,
@@ -266,7 +300,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Operator(Operator),
     Punctuator(Punctuator),
@@ -279,7 +313,7 @@ pub enum TokenKind {
     Error(Error),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Tokenizer {
     input: String,
     position: usize,
@@ -333,7 +367,11 @@ impl Tokenizer {
             else {
                 //create an error with an error type
                 token = Some(Token::new(
-                    TokenKind::Error(Error::new(ErrorType::InvalidToken, "Invalid token")),
+                    TokenKind::Error(Error::new(
+                        ErrorType::InvalidToken,
+                        "Invalid token",
+                        &c.to_string().as_str(),
+                    )),
                     self.line,
                     start_column,
                     self.column,
@@ -456,7 +494,7 @@ impl Tokenizer {
         if self.input.chars().nth(self.position - 1).unwrap() != '"' {
             //create an error with an error type
             return Token::new(
-                TokenKind::Error(Error::new(ErrorType::InvalidToken, "Invalid token")),
+                TokenKind::Error(Error::new(ErrorType::InvalidToken, "Invalid token", &value)),
                 self.line,
                 self.column,
                 self.column,
@@ -486,23 +524,70 @@ impl Tokenizer {
             }
         }
 
-        if KEYWORDS.contains(&value.as_str()) {
+        // Check if the next character is a colon, indicating a type is specified
+        if let Some(':') = self.input.chars().nth(self.position) {
+            self.position += 1;
+            self.column += 1;
+
+            // Skip over any whitespace characters before the type name
+            while self.position < self.input.len() {
+                let c = self.input.chars().nth(self.position).unwrap();
+
+                if c.is_whitespace() {
+                    self.position += 1;
+                    self.column += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let mut type_name = String::new();
+
+            while self.position < self.input.len() {
+                let c = self.input.chars().nth(self.position).unwrap();
+
+                if c.is_alphabetic() {
+                    type_name.push(c);
+                    self.position += 1;
+                    self.column += 1;
+                } else {
+                    break;
+                }
+            }
+
+            if TYPES.contains(&type_name.as_str()) {
+                Token::new(
+                    TokenKind::Identifier(Identifier::new(&value, Type::new(&type_name))),
+                    self.line,
+                    self.column - value.len(),
+                    self.column,
+                )
+            } else {
+                //make a &str from value and type_name
+                let error = value.to_string() + ":" + &type_name;
+                Token::new(
+                    TokenKind::Error(Error::new(
+                        ErrorType::MissingType,
+                        "Missing type",
+                        error.as_str(),
+                    )),
+                    self.line,
+                    self.column - type_name.len(),
+                    self.column,
+                )
+            }
+        } else if KEYWORDS.contains(&value.as_str()) {
             Token::new(
                 TokenKind::Keyword(Keyword::new(&value)),
                 self.line,
                 self.column - value.len(),
                 self.column,
             )
-        } else if TYPES.contains(&value.as_str()) {
+        }
+        
+        else {
             Token::new(
-                TokenKind::Type(Type::new(&value)),
-                self.line,
-                self.column - value.len(),
-                self.column,
-            )
-        } else {
-            Token::new(
-                TokenKind::Identifier(Identifier::new(&value)),
+                TokenKind::Identifier(Identifier::new(&value, Type::new(""))),
                 self.line,
                 self.column - value.len(),
                 self.column,
@@ -558,24 +643,27 @@ impl Tokenizer {
 }
 
 //create error struct with a type and a message
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ErrorType {
     UnexpectedToken,
     InvalidToken,
     UnexpectedEndOfInput,
+    MissingType,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Error {
     error_type: ErrorType,
     message: String,
+    errorstring: String,
 }
 
 impl Error {
-    pub fn new(error_type: ErrorType, message: &str) -> Self {
+    pub fn new(error_type: ErrorType, message: &str, error: &str) -> Error {
         Error {
             error_type,
             message: message.to_string(),
+            errorstring: error.to_string(),
         }
     }
 }
